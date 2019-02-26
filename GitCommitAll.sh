@@ -88,12 +88,17 @@ fi
 
 if [ -n "$s_commintMessage" ]; then
   TryApplyGitCommand "git commit -m \"$s_commintMessage\""
+  b_push="1"
 fi
 
 if [ "$b_push" = "1" ]; then
+  git pull
+  git submodule foreach git pull
   git submodule foreach git push origin master
-  git submodule update
   git push
+  git submodule update
 fi
 
 git status
+git log --oneline --graph --all
+git submodule foreach git log --oneline --graph --all
