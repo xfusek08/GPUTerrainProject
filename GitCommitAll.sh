@@ -36,6 +36,7 @@ TryApplyGitCommand() {
 
 s_addArg=""
 s_commintMessage=""
+s_actBranch=$(git branch | grep \* | cut -d ' ' -f2)
 b_push="0"
 
 i_paramIndex="1"
@@ -71,6 +72,7 @@ echo "Options:"
 echo "  s_addArg:         \"$s_addArg\""
 echo "  s_commintMessage: \"$s_commintMessage\""
 echo "  b_push:           \"0\""
+echo "  s_actBranch:      \"$s_actBranch\""
 
 # check if arguments aren't in not allowed combination
 if                              \
@@ -97,6 +99,7 @@ if [ "$b_push" = "1" ]; then
   git submodule foreach git push origin master
   git push
   git submodule update
+  git submodule foreach git checkout $s_actBranch
 fi
 
 git status
