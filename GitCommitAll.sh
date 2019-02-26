@@ -88,7 +88,6 @@ fi
 
 if [ -n "$s_commintMessage" ]; then
   TryApplyGitCommand "git commit -m \"$s_commintMessage\""
-  $b_push="1"
 fi
 
 if [ "$b_push" = "1" ]; then
