@@ -1,2 +1,2 @@
 # GPUTerrainProject
-Project of simultaneous developing of GPUTerrain library and GPUTerrainDemo application, developed as part of Bachelor thesis.
+Project aggregating GPUTerrain library and GPUTerrainDemo to one project solution, developed as part of Bachelor thesis.
