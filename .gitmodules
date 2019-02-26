@@ -1,0 +1,6 @@
+[submodule "GPUTerrainDemo"]
+	path = GPUTerrainDemo
+	url = https://github.com/xfusek08/GPUTerrainDemo
+[submodule "libs/GPUTerrain"]
+	path = libs/GPUTerrain
+	url = https://github.com/xfusek08/GPUTerrain
