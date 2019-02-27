@@ -9,15 +9,21 @@
 #   All with single shared commit message.
 #
 # Usage:
-#     ./GitCommitAll.sh [add <epr>] [commit <message string>] [push]
+#     ./GitCommitAll.sh [git <expr>] [add <expr>] [commit <message string>] [push]
 #
-#   add    <epr>            - If specified, git add command is used before commiting.
+#   git    <expr>           - git command to be executed for repository and all submodules
+#   add    <expr>           - If specified, git add command is used before commiting.
 #   commit <message string> - If specified, git commit is executed for all repoziories
 #                           - with same commit message
 #   push                    - If specified, git push to all repositories is executed
 #
+# Note:
+#   If more options is specified execution order will be by order of commands in usage,
+#   Actual order of parameters nodes not matter
+#
 # Restrictions:
 #   combination add + push without commit is not allowed
+#
 #
 
 # set -o xtrace
@@ -29,14 +35,14 @@ AbortIfEmpty() {
   fi
 }
 
-TryApplyGitCommand() {
+ApplyGitCommandToAll() {
   git submodule foreach --recursive "$1"
   eval "$1"
 }
 
 s_addArg=""
 s_commintMessage=""
-s_actBranch=$(git branch | grep \* | cut -d ' ' -f2)
+s_gitCommand=""
 b_push="0"
 
 i_paramIndex="1"
@@ -45,7 +51,7 @@ while [ `expr "$i_paramIndex" \<= "$#"` != "0" ]; do                        # wh
   s_actParam=$(eval echo "\$$i_paramIndex")                                 #   s_actParam = args[i_paramIndex];
   i_paramIndex="`expr $i_paramIndex + 1`"                                   #   i_paramIndex++;
   if [ `expr "$i_paramIndex" \<= "$#"` ]; then                              #   if (s_nextParam <= argc) {
-    s_nextParam=$(eval echo "\$$i_paramIndex")                              #     s_nextParam = args[i_paramIndex];
+    s_nextParam="$(eval echo "\$$i_paramIndex")"                            #     s_nextParam = args[i_paramIndex];
   fi                                                                        #   }
   case "$s_actParam" in                                                     #   switch(s_actParam) {
     "add")                                                                  #     case "add":
@@ -58,6 +64,13 @@ while [ `expr "$i_paramIndex" \<= "$#"` != "0" ]; do                        # wh
       s_commintMessage="$s_nextParam"                                       #       s_commintMessage=s_nextParam;
       i_paramIndex="`expr $i_paramIndex + 1`"                               #       i_paramIndex++;
       ;;                                                                    #       break;
+    "git")                                                                  #     case "git":
+      AbortIfEmpty     \
+        "$s_nextParam" \
+        "git custom command option must have specified value"               #       AbortIfEmpty(s_nextParam, "git custom command option must have specified value");
+      s_gitCommand=$s_nextParam                                             #       s_gitCommand=s_nextParam;
+      i_paramIndex="`expr $i_paramIndex + 1`"                               #       i_paramIndex++;
+      ;;                                                                    #       break;
     "push")                                                                 #     case "push":
       b_push="1"                                                            #       b_push="1";
       ;;                                                                    #       break;
@@ -67,12 +80,6 @@ while [ `expr "$i_paramIndex" \<= "$#"` != "0" ]; do                        # wh
       ;;                                                                    #       break;
   esac                                                                      #   }
 done                                                                        # }
-
-echo "Options:"
-echo "  s_addArg:         \"$s_addArg\""
-echo "  s_commintMessage: \"$s_commintMessage\""
-echo "  b_push:           \"0\""
-echo "  s_actBranch:      \"$s_actBranch\""
 
 # check if arguments aren't in not allowed combination
 if                              \
@@ -84,15 +91,20 @@ then
   exit
 fi
 
+if [ -n "$s_gitCommand" ]; then
+  ApplyGitCommandToAll "git $s_gitCommand"
+fi
+
 if [ -n "$s_addArg" ]; then
-  TryApplyGitCommand "git add $s_addArg"
+  ApplyGitCommandToAll "git add $s_addArg"
 fi
 
 if [ -n "$s_commintMessage" ]; then
-  TryApplyGitCommand "git commit -m \"$s_commintMessage\""
+  ApplyGitCommandToAll "git commit -m \"$s_commintMessage\""
   b_push="1"
 fi
 
+s_actBranch=$(git branch | grep \* | cut -d ' ' -f2)
 if [ "$b_push" = "1" ]; then
   git pull
   git submodule foreach git pull
@@ -100,8 +112,7 @@ if [ "$b_push" = "1" ]; then
   git submodule foreach git checkout $s_actBranch
   git submodule update
   git push
+  git status
+  git log --oneline --graph --all
+  git submodule foreach git log --oneline --graph --all
 fi
-
-git status
-git log --oneline --graph --all
-git submodule foreach git log --oneline --graph --all
