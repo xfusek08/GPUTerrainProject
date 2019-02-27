@@ -98,7 +98,7 @@ if [ "$b_push" = "1" ]; then
   git submodule foreach git pull
   git submodule foreach git push origin $s_actBranch
   git submodule foreach git checkout $s_actBranch
-  git submodule unpdate
+  git submodule update
   git push
 fi
 
