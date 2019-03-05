@@ -100,16 +100,24 @@ if [ -n "$s_addArg" ]; then
 fi
 
 if [ -n "$s_commintMessage" ]; then
-  ApplyGitCommandToAll "git commit -m \"$s_commintMessage\""
   b_push="1"
 fi
 
 s_actBranch=$(git branch | grep \* | cut -d ' ' -f2)
 if [ "$b_push" = "1" ]; then
+  if [ -n "$s_commintMessage" ]; then
+    git submodule foreach git commit -m "$s_commintMessage"
+  fi
+
   git pull
   git submodule foreach git pull
   git submodule foreach git push origin $s_actBranch
   git submodule foreach git checkout $s_actBranch
+
+  if [ -n "$s_commintMessage" ]; then
+    git commit -m "$s_commintMessage"
+  fi
+
   git submodule update
   git push
   git status
