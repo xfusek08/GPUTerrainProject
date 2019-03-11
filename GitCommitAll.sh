@@ -9,13 +9,11 @@
 #   All with single shared commit message.
 #
 # Usage:
-#     ./GitCommitAll.sh [git <expr>] [add <expr>] [commit <message string>] [push]
+#     ./GitCommitAll.sh [git <expr>] [commit <message string>]
 #
 #   git    <expr>           - git command to be executed for repository and all submodules
-#   add    <expr>           - If specified, git add command is used before commiting.
 #   commit <message string> - If specified, git commit is executed for all repoziories
 #                           - with same commit message
-#   push                    - If specified, git push to all repositories is executed
 #
 # Note:
 #   If more options is specified execution order will be by order of commands in usage,
@@ -28,6 +26,11 @@
 
 # set -o xtrace
 
+b_debug="0"
+s_commitMessage=""
+s_gitCommand=""
+b_resetOneCommit="0"
+
 AbortIfEmpty() {
   if [ -z $1 ]; then
     echo "$2"
@@ -36,14 +39,23 @@ AbortIfEmpty() {
 }
 
 ApplyGitCommandToAll() {
+  echo "ApplyGitCommandToAll: $1"
   git submodule foreach --recursive "$1"
   eval "$1"
 }
 
-s_addArg=""
-s_commintMessage=""
-s_gitCommand=""
-b_push="0"
+dStep() {
+  if [ "$b_debug" = "1" ]; then
+    echo ''
+    echo "Step: $1"
+    echo "--------------------------------------------------------------------------------------"
+    read -s -n 1 key
+    if [ $key = $'\e' ]; then
+      exit
+    fi
+  fi
+  eval "$1"
+}
 
 i_paramIndex="1"
 while [ `expr "$i_paramIndex" \<= "$#"` != "0" ]; do                        # while(i_paramIndex <= argc) {
@@ -54,14 +66,9 @@ while [ `expr "$i_paramIndex" \<= "$#"` != "0" ]; do                        # wh
     s_nextParam="$(eval echo "\$$i_paramIndex")"                            #     s_nextParam = args[i_paramIndex];
   fi                                                                        #   }
   case "$s_actParam" in                                                     #   switch(s_actParam) {
-    "add")                                                                  #     case "add":
-      AbortIfEmpty "$s_nextParam" "Add option must have specified value"    #       AbortIfEmpty(s_nextParam, "Add option must have specified value");
-      s_addArg="$s_nextParam"                                               #       s_addArg=s_nextParam;
-      i_paramIndex="`expr $i_paramIndex + 1`"                               #       i_paramIndex++;
-      ;;                                                                    #       break;
     "commit")                                                               #     case "commit":
       AbortIfEmpty "$s_nextParam" "Commit option must have specified value" #       AbortIfEmpty(s_nextParam, "Commit option must have specified value");
-      s_commintMessage="$s_nextParam"                                       #       s_commintMessage=s_nextParam;
+      s_commitMessage="$s_nextParam"                                       #       s_commitMessage=s_nextParam;
       i_paramIndex="`expr $i_paramIndex + 1`"                               #       i_paramIndex++;
       ;;                                                                    #       break;
     "git")                                                                  #     case "git":
@@ -71,8 +78,11 @@ while [ `expr "$i_paramIndex" \<= "$#"` != "0" ]; do                        # wh
       s_gitCommand=$s_nextParam                                             #       s_gitCommand=s_nextParam;
       i_paramIndex="`expr $i_paramIndex + 1`"                               #       i_paramIndex++;
       ;;                                                                    #       break;
-    "push")                                                                 #     case "push":
-      b_push="1"                                                            #       b_push="1";
+    "d")                                                                    #     case "d":
+      b_debug="1"                                                           #       b_debug="1";
+      ;;                                                                    #       break;
+    "resetOne")                                                             #     case "resetOne":
+      b_resetOneCommit="1"                                                  #       b_resetOneCommit="1";
       ;;                                                                    #       break;
     *)                                                                      #     default:
       echo "Unknown argument: \"$s_actParam\""                              #       print("Unknown argument: " + s_actParam);
@@ -81,46 +91,36 @@ while [ `expr "$i_paramIndex" \<= "$#"` != "0" ]; do                        # wh
   esac                                                                      #   }
 done                                                                        # }
 
-# check if arguments aren't in not allowed combination
-if                              \
-  [ -n "$s_addArg" ] &&         \
-  [ -z "$s_commintMessage" ] && \
-  [ "$b_push" = "1" ]
-then
-  echo "combination of add and push is not allowed without defined commit"
+s_actBranch=$(git branch | grep \* | cut -d ' ' -f2)
+
+if [ "$b_resetOneCommit" = "1" ]; then
+  dStep "ApplyGitCommandToAll \"git checkout --force $s_actBranch\""
+  dStep "ApplyGitCommandToAll \"git reset --soft HEAD~1\""
+  dStep "ApplyGitCommandToAll \"git push --force\""
   exit
 fi
 
 if [ -n "$s_gitCommand" ]; then
-  ApplyGitCommandToAll "git $s_gitCommand"
+  dStep "ApplyGitCommandToAll \"git $s_gitCommand\""
 fi
 
-if [ -n "$s_addArg" ]; then
-  ApplyGitCommandToAll "git add $s_addArg"
+if [ -n "$s_commitMessage" ]; then
+  dStep "ApplyGitCommandToAll \"git add .\""
+  dStep "git submodule foreach git commit -m \"$s_commitMessage\""
+  dStep "git add ."
+  dStep "git commit -m \"$s_commitMessage\""
+
+  dStep "git submodule foreach git pull"
+  dStep "git pull"
+
+  dStep "git submodule foreach git push origin $s_actBranch"
+  # dStep "git submodule foreach git checkout $s_actBranch"
+  # dStep "git submodule update"
+  dStep "git push"
+
+  dStep "git status"
+  dStep "git log --oneline --graph --all"
+  dStep "git submodule foreach git log --oneline --graph --all"
 fi
 
-if [ -n "$s_commintMessage" ]; then
-  b_push="1"
-fi
-
-s_actBranch=$(git branch | grep \* | cut -d ' ' -f2)
-if [ "$b_push" = "1" ]; then
-  if [ -n "$s_commintMessage" ]; then
-    git submodule foreach git commit -m "$s_commintMessage"
-  fi
-
-  git pull
-  git submodule foreach git pull
-  git submodule foreach git push origin $s_actBranch
-  git submodule foreach git checkout $s_actBranch
-
-  if [ -n "$s_commintMessage" ]; then
-    git commit -m "$s_commintMessage"
-  fi
-
-  git submodule update
-  git push
-  git status
-  git log --oneline --graph --all
-  git submodule foreach git log --oneline --graph --all
-fi
+# ./GitCommitAll.sh d commit "Common build direcotry with new git commit script file and copying dlls form packages"
