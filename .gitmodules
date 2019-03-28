@@ -4,3 +4,6 @@
 [submodule "libs/GPUTerrain"]
 	path = libs/GPUTerrain
 	url = https://github.com/xfusek08/GPUTerrain
+[submodule "libs/glfw"]
+	path = libs/glfw
+	url = https://github.com/xfusek08/glfw
